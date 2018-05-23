@@ -2,10 +2,8 @@ package tk.davinctor.recordandlisten
 
 import android.content.Context
 import android.util.Log
-import io.reactivex.Flowable
 import io.reactivex.Observable
 import java.io.File
-import kotlin.math.log
 
 /**
  * @author Victor Ponomarenko
@@ -41,7 +39,6 @@ class LoadRecordsInteractor(context: Context) {
                     RecordsViewState.Result(it)
                 }
             })
-            .doOnNext { Log.d(logTag, "records()") }
             .startWith(RecordsViewState.Loading)
             .onErrorReturn { error -> RecordsViewState.Error(error) }
 

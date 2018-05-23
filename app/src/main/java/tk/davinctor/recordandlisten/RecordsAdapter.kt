@@ -23,6 +23,7 @@ class RecordsAdapter(context: Context,
                      private val onItemClickListener: (Int, Boolean) -> Unit)
     : RecyclerView.Adapter<RecordsAdapter.ViewHolder>() {
 
+    private var mediaInProgress: Pair<MediaState, Int>? = null
     private val layoutInflater: LayoutInflater = LayoutInflater.from(context)
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -32,7 +33,12 @@ class RecordsAdapter(context: Context,
 
     override fun getItemCount(): Int = records.size
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) = holder.bind(records[position])
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        holder.bind(records[position])
+        if (position == mediaInProgress?.second) {
+            holder.bind(mediaInProgress!!.first)
+        }
+    }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int, payloads: MutableList<Any>) {
         if (payloads.isEmpty()) {
@@ -42,12 +48,15 @@ class RecordsAdapter(context: Context,
                 if (it is MediaState) {
                     holder.bind(it)
                 }
+                if (it is MediaState.Playing) {
+                    mediaInProgress = Pair<MediaState, Int>(it, position)
+                }
             }
         }
     }
 
     sealed class MediaState {
-        data class Playing(val duration: Long) : MediaState()
+        data class Playing(val progressEmitter: Observable<Int>) : MediaState()
         object Stopped : MediaState()
     }
 
@@ -76,11 +85,7 @@ class RecordsAdapter(context: Context,
             when (mediaState) {
                 is MediaState.Playing -> {
                     mediaButton.isActivated = true
-                    countdownDisposable = Observable.zip(
-                            Observable.interval(mediaState.duration / 100, TimeUnit.MILLISECONDS),
-                            Observable.range(0, 100),
-                            BiFunction<Long, Int, Int> { _, rangeValue -> rangeValue })
-                            .subscribeOn(Schedulers.computation())
+                    countdownDisposable = mediaState.progressEmitter
                             .observeOn(AndroidSchedulers.mainThread())
                             .doOnNext {
                                 durationProgressBar.progress = it

@@ -16,6 +16,7 @@ import com.jakewharton.rxbinding2.view.RxView
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
+import io.reactivex.functions.BiFunction
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
 import kotlinx.android.synthetic.main.activity_records.*
@@ -38,6 +39,8 @@ class RecordsActivity : MviActivity<RecordsView, RecordsPresenter>(), RecordsVie
     private lateinit var recordFabMotionObservable: Observable<MotionEvent>
     private lateinit var recordsAdapter: RecordsAdapter
     private var lastPlayedRecordPosition = -1
+    private val progressEmitterSubject = PublishSubject.create<Int>()
+    private var progressDisposable: Disposable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -114,6 +117,7 @@ class RecordsActivity : MviActivity<RecordsView, RecordsPresenter>(), RecordsVie
     }
 
     private fun renderStopPlay() {
+        progressDisposable?.dispose()
         if (lastPlayedRecordPosition >= 0) {
             recordsAdapter.notifyItemChanged(lastPlayedRecordPosition, RecordsAdapter.MediaState.Stopped)
         }
@@ -130,7 +134,17 @@ class RecordsActivity : MviActivity<RecordsView, RecordsPresenter>(), RecordsVie
             return
         }
         lastPlayedRecordPosition = newLastPlayedRecordPosition
-        recordsAdapter.notifyItemChanged(lastPlayedRecordPosition, RecordsAdapter.MediaState.Playing(viewState.recordEntity.duration))
+        recordsAdapter.notifyItemChanged(lastPlayedRecordPosition, RecordsAdapter.MediaState.Playing(progressEmitterSubject))
+        progressDisposable = Observable.zip(
+                Observable.interval(viewState.recordEntity.duration / 100, TimeUnit.MILLISECONDS),
+                Observable.range(0, 100),
+                BiFunction<Long, Int, Int> { _, rangeValue -> rangeValue })
+                .subscribeOn(Schedulers.computation())
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnNext {
+                    progressEmitterSubject.onNext(it)
+                }
+                .subscribe()
     }
 
     private fun renderRecordsList(viewState: RecordsViewState.Result) {
