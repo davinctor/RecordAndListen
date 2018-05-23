@@ -39,7 +39,7 @@ class RecordsActivity : MviActivity<RecordsView, RecordsPresenter>(), RecordsVie
     private lateinit var recordFabMotionObservable: Observable<MotionEvent>
     private lateinit var recordsAdapter: RecordsAdapter
     private var lastPlayedRecordPosition = -1
-    private val progressEmitterSubject = PublishSubject.create<Int>()
+    private var progressEmitterSubject : PublishSubject<Int>? = null
     private var progressDisposable: Disposable? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -54,7 +54,23 @@ class RecordsActivity : MviActivity<RecordsView, RecordsPresenter>(), RecordsVie
         records_rv.adapter = recordsAdapter
         records_rv.layoutManager = LinearLayoutManager(this)
         recordFabMotionObservable = RxView.touches(record_fab).share()
+
         permissionToRecordAccepted = ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+    }
+
+    override fun onStart() {
+        super.onStart()
+        progressEmitterSubject = PublishSubject.create()
+    }
+
+    override fun onStop() {
+        countdownDisposable?.dispose()
+        progressDisposable?.dispose()
+        progressEmitterSubject?.onComplete()
+        if (lastPlayedRecordPosition >=0) {
+            stopPlayRecordSubject.onNext(records[lastPlayedRecordPosition])
+        }
+        super.onStop()
     }
 
     override fun loadRecords(): Observable<Boolean> {
@@ -134,7 +150,7 @@ class RecordsActivity : MviActivity<RecordsView, RecordsPresenter>(), RecordsVie
             return
         }
         lastPlayedRecordPosition = newLastPlayedRecordPosition
-        recordsAdapter.notifyItemChanged(lastPlayedRecordPosition, RecordsAdapter.MediaState.Playing(progressEmitterSubject))
+        recordsAdapter.notifyItemChanged(lastPlayedRecordPosition, RecordsAdapter.MediaState.Playing(progressEmitterSubject!!))
         progressDisposable = Observable.zip(
                 Observable.interval(viewState.recordEntity.duration / 100, TimeUnit.MILLISECONDS),
                 Observable.range(0, 100),
@@ -142,7 +158,7 @@ class RecordsActivity : MviActivity<RecordsView, RecordsPresenter>(), RecordsVie
                 .subscribeOn(Schedulers.computation())
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnNext {
-                    progressEmitterSubject.onNext(it)
+                    progressEmitterSubject!!.onNext(it)
                 }
                 .subscribe()
     }
