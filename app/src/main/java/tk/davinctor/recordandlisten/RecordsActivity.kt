@@ -88,6 +88,7 @@ class RecordsActivity : MviActivity<RecordsView, RecordsPresenter>(), RecordsVie
         when (viewState) {
 
             is RecordsViewState.Result -> renderRecordsList(viewState)
+            is RecordsViewState.Error -> renderLoadRecordsError(viewState)
 
             is RecordsViewState.StartRecord -> renderStartRecord()
             is RecordsViewState.RecordFailed -> renderRecordFailed(viewState)
@@ -96,6 +97,14 @@ class RecordsActivity : MviActivity<RecordsView, RecordsPresenter>(), RecordsVie
             is RecordsViewState.PlayStarted -> renderStartPlay(viewState)
             is RecordsViewState.PlayError -> renderPlayError(viewState)
             is RecordsViewState.PlayEnded -> renderStopPlay()
+        }
+    }
+
+    private fun renderLoadRecordsError(viewState: RecordsViewState.Error) {
+        if (viewState.error.message.isNullOrEmpty()) {
+            showError("Failed to load records list")
+        } else{
+            showError(viewState.error.message!!)
         }
     }
 
