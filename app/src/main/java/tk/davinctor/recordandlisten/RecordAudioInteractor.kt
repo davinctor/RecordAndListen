@@ -2,7 +2,6 @@ package tk.davinctor.recordandlisten
 
 import android.content.Context
 import android.media.MediaRecorder
-import android.util.Log
 import io.reactivex.Completable
 import io.reactivex.Observable
 import io.reactivex.functions.Function
@@ -53,7 +52,7 @@ class RecordAudioInteractor(context: Context) {
 
     private fun handleFailedRecord(error: Throwable): RecordsViewState {
         val fileWithBrokenMedia = File(recordFilePath!!)
-        //fileWithBrokenMedia.deleteOnExit()
+        fileWithBrokenMedia.deleteOnExit()
         return if (error.message.isNullOrEmpty()) {
             RecordsViewState.RecordFailed(Exception("Record failed", error))
         } else {
